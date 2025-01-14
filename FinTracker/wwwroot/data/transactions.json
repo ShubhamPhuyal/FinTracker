@@ -1,0 +1,29 @@
+[
+  {
+    "Category": "Salary",
+    "Amount": 5000,
+    "Type": "Credit",
+    "IsCleared": true,
+    "Date": "2024-01-01T00:00:00",
+    "Notes": "January salary",
+    "Tags": ["Income"]
+  },
+  {
+    "Category": "Groceries",
+    "Amount": 200,
+    "Type": "Debit",
+    "IsCleared": true,
+    "Date": "2024-01-02T00:00:00",
+    "Notes": "Weekly groceries",
+    "Tags": ["Food", "Essentials"]
+  },
+  {
+    "Category": "Rent",
+    "Amount": 1000,
+    "Type": "Debt",
+    "IsCleared": false,
+    "Date": "2024-01-01T00:00:00",
+    "Notes": "January rent",
+    "Tags": ["Housing"]
+  }
+]

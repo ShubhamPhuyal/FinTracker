@@ -1,0 +1,202 @@
+@page "/login"
+@using FinTracker.Services.Interface
+@inject NavigationManager Nav
+@inject IUserService UserService
+
+<div class="login-container">
+    <div class="left-section">
+        <div class="new-user-content">
+            <h2 class="new-here">Welcome Back</h2>
+            <p class="create-account-text">Let's get you logged in.</p>
+        </div>
+    </div>
+
+    <div class="right-section">
+        <div class="login-form-container">
+            <div class="close-btn">✕</div>
+            <h1 class="login-title">Login</h1>
+
+            <form class="login-form" @onsubmit="HandleLogin">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" class="form-control" @bind="Users.Username" placeholder="Enter your username" />
+                </div>
+
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" class="form-control" @bind="Users.Password" placeholder="Enter your password" />
+                </div>
+
+                <div class="form-group">
+                    <label>Currency</label>
+                    <select class="form-control" @bind="SelectedCurrency" required>
+                        <option value="" disabled>Select Currency</option>
+                        <option value="NPR">NPR</option>
+                        <option value="USD">USD</option>
+                        <option value="INR">INR</option>
+                        <option value="EUR">EUR</option>
+                    </select>
+                </div>
+
+                @if (!string.IsNullOrEmpty(ErrorMessage))
+                {
+                <div class="alert alert-danger">@ErrorMessage</div>
+                }
+
+                <div class="button-container">
+                    <button type="submit" class="login-btn">Log In</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .login-container {
+        display: flex;
+        justify-content: center; /* Center horizontally */
+        align-items: stretch; /* Make both sections stretch to equal height */
+        min-height: 100vh; /* Full height of the viewport */
+        margin: 0;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .left-section {
+        flex: 1; /* Makes the left section take equal space */
+        background-color: #52A7E0; /* Full background color */
+        color: white;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 2rem;
+        text-align: center;
+    }
+
+    .new-user-content {
+        margin-bottom: 2rem;
+    }
+
+    .new-here {
+        font-size: 2.2rem;
+        font-weight: bold;
+        margin-bottom: 1rem;
+    }
+
+    .create-account-text {
+        font-size: 1.2rem;
+    }
+
+    .right-section {
+        flex: 1; /* Makes the right section take equal space */
+        background: white;
+        padding: 2rem;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border-left: 1px solid #ddd; /* Optional: Adds a border between the sections */
+    }
+
+    .login-form-container {
+        width: 100%;
+        max-width: 400px;
+        padding: 2rem;
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .close-btn {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: #888;
+    }
+
+    .login-title {
+        font-size: 1.8rem;
+        color: #52A7E0;
+        font-weight: bold;
+        margin-bottom: 2rem;
+        text-align: center;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+        font-size: 1rem;
+        font-weight: 500;
+        color: #333;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 0.8rem;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        font-size: 1rem;
+        margin-top: 0.5rem;
+    }
+
+    .form-control::placeholder {
+        color: #aaa;
+    }
+
+    .form-control:focus {
+        border-color: #52A7E0;
+        outline: none;
+    }
+
+    .alert {
+        color: red;
+        margin-top: 1rem;
+        font-size: 0.9rem;
+        text-align: center;
+    }
+
+    .login-btn {
+        width: 48%;
+        padding: 1rem;
+        background-color: #52A7E0;
+        color: white;
+        font-size: 1.1rem;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+
+    .login-btn:hover {
+        background-color: #3d8ec7;
+    }
+
+    .register-btn {
+        width: 48%;
+        padding: 1rem;
+        background-color: #3d8ec7;
+        color: white;
+        font-size: 1.1rem;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+
+    .register-btn:hover {
+        background-color: #52A7E0;
+    }
+
+    .register-btn:focus {
+        outline: none;
+    }
+
+    /* Align the login and register buttons side by side */
+    .button-container {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 1.5rem;
+    }
+</style>

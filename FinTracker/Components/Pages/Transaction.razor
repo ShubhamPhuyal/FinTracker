@@ -1,0 +1,175 @@
+@page "/transaction"
+
+<div class="container">
+    <h1 class="text-center mb-4">Transaction List</h1>
+
+    <!-- Search Bar -->
+    <div class="input-group mb-3">
+        <input type="text" class="form-control" placeholder="Search transactions..." @bind="searchTerm">
+    </div>
+
+    <!-- Transaction Table -->
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+            <tr>
+                <th>Description</th>
+                <th>Type</th>
+                <th>Amount</th>
+                <th>Date</th>
+                <th>Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var transaction in FilteredTransactions)
+            {
+            <tr>
+                <td>@transaction.Description</td>
+                <td>@transaction.Type</td>
+                <td>@transaction.Amount.ToString("C")</td>
+                <td>@transaction.Date.ToShortDateString()</td>
+                <td>
+                    <button class="btn btn-sm btn-primary me-1" @onclick="() => EditTransaction(transaction)">Edit</button>
+                    <button class="btn btn-sm btn-danger" @onclick="() => DeleteTransaction(transaction)">Delete</button>
+                </td>
+            </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Add Transaction Button -->
+    <div class="d-flex justify-content-end mt-3">
+        <button class="btn btn-primary" @onclick="OpenModal">Add Transaction</button>
+    </div>
+
+    <!-- Add/Edit Modal -->
+    @if (showModal)
+    {
+    <div class="modal show d-block">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@modalTitle</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <input type="text" id="description" class="form-control" @bind="newTransaction.Description">
+                    </div>
+                    <div class="mb-3">
+                        <label for="type" class="form-label">Type</label>
+                        <select id="type" class="form-select" @bind="newTransaction.Type">
+                            <option value="">Select Type</option>
+                            <option value="Income">Income</option>
+                            <option value="Expense">Expense</option>
+                            <option value="Debt">Debt</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="amount" class="form-label">Amount</label>
+                        <input type="number" id="amount" class="form-control" @bind="newTransaction.Amount">
+                    </div>
+                    <div class="mb-3">
+                        <label for="date" class="form-label">Date</label>
+                        <input type="date" id="date" class="form-control" @bind="newTransaction.Date">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
+                    <button type="button" class="btn btn-primary" @onclick="SaveTransaction">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+    }
+
+    <!-- Error/Success Messages -->
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+    <div class="alert alert-success mt-3">@successMessage</div>
+    }
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+    <div class="alert alert-danger mt-3">@errorMessage</div>
+    }
+</div>
+
+@code {
+private string modalTitle = "Add Transaction";
+private string searchTerm;
+private string errorMessage;
+private string successMessage;
+
+private bool showModal = false;
+
+private Transactions newTransaction = new Transactions();
+
+private List<Transactions> transactions = new List<Transactions>()
+{
+new Transactions { Description = "Grocery Shopping", Date = DateTime.Parse("2024-12-25"), Amount = 150, Type = "Expense" },
+new Transactions { Description = "Freelance Payment", Date = DateTime.Parse("2024-12-24"), Amount = 500, Type = "Income" },
+new Transactions { Description = "Borrowed from Someone", Date = DateTime.Parse("2024-12-22"), Amount = 300, Type = "Debt" }
+};
+
+private IEnumerable<Transactions> FilteredTransactions =>
+transactions.Where(t => string.IsNullOrEmpty(searchTerm) || t.Description.Contains(searchTerm, StringComparison.OrdinalIgnoreCase));
+
+private void OpenModal()
+{
+modalTitle = "Add Transaction";
+newTransaction = new Transactions { Date = DateTime.Now };
+showModal = true;
+}
+
+private void CloseModal()
+{
+showModal = false;
+errorMessage = null;
+successMessage = null;
+}
+
+private void SaveTransaction()
+{
+if (!transactions.Contains(newTransaction))
+{
+transactions.Add(new Transactions
+{
+Description = newTransaction.Description,
+Type = newTransaction.Type,
+Amount = newTransaction.Amount,
+Date = newTransaction.Date == default ? DateTime.Now : newTransaction.Date
+});
+successMessage = "Transaction added successfully.";
+}
+else
+{
+successMessage = "Transaction updated successfully.";
+}
+CloseModal();
+}
+
+private void EditTransaction(Transactions transaction)
+{
+modalTitle = "Edit Transaction";
+newTransaction = transaction;
+showModal = true;
+}
+
+private void DeleteTransaction(Transactions transaction)
+{
+transactions.Remove(transaction);
+successMessage = "Transaction deleted successfully.";
+}
+
+public class Transactions
+{
+public string Description { get; set; }
+public string Type { get; set; }
+public decimal Amount { get; set; }
+public DateTime Date { get; set; }
+}
+}
