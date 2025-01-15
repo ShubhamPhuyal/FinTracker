@@ -1,6 +1,439 @@
-@page "/Debt"
-<h3>Debt</h3>
+@page "/debt"
+@using FinTracker.Services.Interface
+@inject NavigationManager Nav
+@using FinTracker.Models
+
+<style>
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1.5rem;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .add-debt-btn {
+            background: #6366f1;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(99, 102, 241, 0.2);
+        }
+
+        .add-debt-btn:hover {
+            background: #4f46e5;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(99, 102, 241, 0.3);
+        }
+
+        .debt-table {
+            width: 100%;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            border-collapse: collapse;
+        }
+
+        .debt-table thead {
+            background: #f8fafc;
+        }
+
+        .debt-table th {
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: #475569;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .debt-table td {
+            padding: 1rem;
+            color: #1e293b;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 0.875rem;
+        }
+
+        .debt-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .debt-table tbody tr:hover {
+            background: #f8fafc;
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            display: inline-block;
+        }
+
+        .status-pending {
+            background: #fff7ed;
+            color: #c2410c;
+        }
+
+        .status-cleared {
+            background: #f0fdf4;
+            color: #15803d;
+        }
+
+        .clear-debt-btn {
+            background: #22c55e;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .clear-debt-btn:hover {
+            background: #16a34a;
+        }
+
+        .amount-cell {
+            font-family: 'Monaco', monospace;
+            font-weight: 500;
+        }
+
+        .source-badge {
+            background: #f1f5f9;
+            padding: 0.25rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            color: #475569;
+        }
+</style>
+<div class="container">
+    <div class="header">
+        <h1 class="title">Debt Tracker</h1>
+        <button class="add-debt-btn" @onclick="OpenModal">
+            Add Debt
+        </button>
+    </div>
+
+    <table class="debt-table">
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Due Date</th>
+                <th>Amount</th>
+                <th>Source</th>
+                <th>Status</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var debt in debts)
+            {
+                <tr>
+                    <td>@debt.Title</td>
+                    <td>@debt.DueDate.ToShortDateString()</td>
+                    <td class="amount-cell">$@debt.Amount</td>
+                    <td><span class="source-badge">@debt.Source</span></td>
+                    <td>
+                        <span class="status-badge @(debt.Status == "Pending" ? "status-pending" : "status-cleared")">
+                            @debt.Status
+                        </span>
+                    </td>
+                    <td>
+                        @if (debt.Status == "Pending")
+
+                        {
+                            <button class="clear-debt-btn" @onclick="() => ClearDebt(debt)">
+                                Clear Debt
+                            </button>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+@* Modal for Adding Debt *@
+@if (showModal)
+
+{
+    <div class="modal fade show d-block" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Debt</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger">
+                            @errorMessage
+                        </div>
+                    }
+                    <div class="mb-3">
+                        <label>Title</label>
+                        <input type="text" class="form-control" @bind="newDebt.Title" />
+                    </div>
+                    <div class="mb-3">
+                        <label>Source</label>
+                        <input type="text" class="form-control" @bind="newDebt.Source" />
+                    </div>
+                    <div class="mb-3">
+                        <label>Amount</label>
+                        <input type="number" class="form-control" @bind="newDebt.Amount" />
+                    </div>
+                    <div class="mb-3">
+                        <label>Status</label>
+                        <select class="form-control" @bind="newDebt.Status">
+                            <option value="Pending">Pending</option>
+                            <option value="Cleared">Cleared</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label>Due Date</label>
+                        <input type="date" class="form-control" @bind="newDebt.DueDate" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModal">Close</button>
+                    <button type="button" class="btn btn-primary" @onclick="async () => await AddDebt()">Add Debt</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
 
 @code {
-    
+    private string errorMessage;
+
+
+
+    private Models.Debt newDebt = new Models.Debt();
+
+
+
+    private bool showModal = false;
+
+
+
+    private List<Models.Debt> debts = new List<Models.Debt>();
+
+
+
+    private List<Models.Transaction> transactions = new List<Models.Transaction>();
+
+
+
+    private decimal TotalInflow => transactions.Where(t => t.Type == "Income").Sum(t => t.Amount);
+
+
+
+    private decimal TotalOutflow => transactions.Where(t => t.Type == "Expense").Sum(t => t.Amount);
+
+
+
+    private decimal AvailableInflow => TotalInflow - TotalOutflow;
+
+
+
+    protected override async Task OnInitializedAsync()
+
+    {
+
+        await LoadDebts();
+
+        await LoadTransactions(); // Load transactions along with debts
+
+    }
+
+
+
+    private async Task LoadDebts()
+
+    {
+
+        try
+
+        {
+
+            // Load debts using a service
+
+            debts = await DebtService.GetAllDebts();
+
+        }
+
+        catch (Exception ex)
+
+        {
+
+            Console.WriteLine($"Error loading debts: {ex.Message}");
+
+        }
+
+    }
+
+
+
+    private async Task LoadTransactions()
+
+    {
+
+        try
+
+        {
+
+            // Load transactions using a service
+
+            transactions = await TransactionService.GetAllTransactions();
+
+        }
+
+        catch (Exception ex)
+
+        {
+
+            Console.WriteLine($"Error loading transactions: {ex.Message}");
+
+        }
+
+    }
+
+
+
+    private void OpenModal()
+
+    {
+
+        newDebt = new Models.Debt
+
+            {
+
+                DueDate = DateOnly.FromDateTime(DateTime.Now.AddDays(20)),
+
+                Status = "Pending"
+
+            };
+
+        showModal = true;
+
+    }
+
+
+
+    private void CloseModal() => showModal = false;
+
+
+
+    private async Task AddDebt()
+
+    {
+
+        try
+
+        {
+
+            if (string.IsNullOrWhiteSpace(newDebt.Title))
+
+                throw new Exception("Title is required.");
+
+
+
+            if (newDebt.Amount <= 0)
+
+                throw new Exception("Amount must be greater than zero.");
+
+
+
+            if (string.IsNullOrWhiteSpace(newDebt.Source))
+
+                throw new Exception("Source is required.");
+
+
+
+            // Save the debt via a service
+
+            await DebtService.AddDebt(newDebt);
+
+
+
+            debts.Add(newDebt);
+
+            CloseModal();
+
+        }
+
+        catch (Exception ex)
+
+        {
+
+            errorMessage = ex.Message;
+
+        }
+
+    }
+
+
+
+    private async Task ClearDebt(Models.Debt debt)
+
+    {
+
+        Console.WriteLine($"ClearDebt called for debt: {debt.Title}");
+
+        try
+
+        {
+
+            if (debt.Amount > AvailableInflow)
+
+                throw new Exception("Insufficient available income to clear this debt.");
+
+
+
+            debt.Status = "Cleared";
+
+
+
+            // Update the debt status via a service
+
+            await DebtService.UpdateDebt(debt);
+
+
+
+            Console.WriteLine($"Debt {debt.Title} cleared successfully.");
+
+
+
+            StateHasChanged(); // Update the UI
+
+        }
+
+        catch (Exception ex)
+
+        {
+
+            errorMessage = ex.Message;
+
+            Console.WriteLine($"Error clearing debt: {ex.Message}");
+
+        }
+
+    }
 }
