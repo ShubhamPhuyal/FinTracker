@@ -1,32 +1,39 @@
 using FinTracker.Models;
+using Microsoft.AspNetCore.Components;
 
 namespace FinTracker.Components.Pages
 {
     public partial class Login
     {
         private string? ErrorMessage;
-        private string SelectedCurrency { get; set; } = string.Empty;
+        private User Users { get; set; } = new User();
 
-        public User Users { get; set; } = new();
-
-        private async void HandleLogin()
+        private async Task HandleLogin()
         {
-            if (string.IsNullOrEmpty(SelectedCurrency))
-            {
-                ErrorMessage = "Please select a preferred currency.";
-                return;
-            }
+            // Clear any existing error messages
+            ErrorMessage = null;
+
+            // Validate input
             if (string.IsNullOrEmpty(Users.Username) || string.IsNullOrEmpty(Users.Password))
             {
+                ErrorMessage = "Username and password are required.";
+                return;
+            }
+
+            if (string.IsNullOrEmpty(Users.PreferredCurrency))
+            {
                 ErrorMessage = "Please select a preferred currency.";
                 return;
             }
-            var CurrentUser = await UserService.Login(Users);
 
-            if (CurrentUser != null)
+            // Call the UserService for authentication
+            var currentUser = await UserService.Login(Users);
+
+            if (currentUser != null)
             {
-                // Navigate to home on successful login
-                Nav.NavigateTo("/home");
+                // Store user globally and navigate to dashboard
+                GlobalState.CurrentUser = currentUser;
+                Nav.NavigateTo("/dashboard");
             }
             else
             {
@@ -34,6 +41,5 @@ namespace FinTracker.Components.Pages
                 ErrorMessage = "Invalid username or password.";
             }
         }
-
     }
 }

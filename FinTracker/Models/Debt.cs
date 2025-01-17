@@ -17,6 +17,8 @@ namespace FinTracker.Models
 
         public string Title { get; set; }
 
+        public decimal OriginalAmount { get; set; }
+        public string OriginalCurrency { get; set; }
 
 
     }

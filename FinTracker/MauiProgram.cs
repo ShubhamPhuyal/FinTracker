@@ -1,7 +1,8 @@
 ﻿using FinTracker.Services;
 using FinTracker.Services.Interface;
 using Microsoft.Extensions.Logging;
-
+using MudBlazor.Services;
+using FinTracker.Models; // Ensure this line is included
 
 namespace FinTracker
 {
@@ -19,12 +20,17 @@ namespace FinTracker
 
             builder.Services.AddMauiBlazorWebView();
 
-            //Register services 
-
+            // Register services
             builder.Services.AddScoped<IUserService, UserService>();
             builder.Services.AddScoped<ITransactionService, TransactionService>();
             builder.Services.AddScoped<IDebtService, DebtService>();
             builder.Services.AddScoped<ITagService, TagService>();
+
+            // Register GlobalState as singleton
+            builder.Services.AddSingleton<GlobalState>(); // Ensure this line is added
+
+            // Add MudBlazor services
+            builder.Services.AddMudServices();
 
 #if DEBUG
             builder.Services.AddBlazorWebViewDeveloperTools();

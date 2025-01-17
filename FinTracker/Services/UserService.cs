@@ -18,7 +18,8 @@ namespace FinTracker.Services
                 _users.Add(new User
                 {
                     Username = Seeding.Seeding.SeedUsername,
-                    Password = HashPassword(Seeding.Seeding.SeedPassword) // Ensure the password is hashed
+                    Password = HashPassword(Seeding.Seeding.SeedPassword), // Ensure the password is hashed
+                    PreferredCurrency = "USD" // Default preferred currency
                 });
                 SaveAll(_users, AppUsersFilePath);
             }
@@ -31,8 +32,17 @@ namespace FinTracker.Services
                 return null;
             }
 
-            var loggedInUser = _users.FirstOrDefault(u => u.Username == user.Username &&
-                                                          u.Password == HashPassword(user.Password));
+            var loggedInUser = await Task.Run(() =>
+            {
+                return _users.FirstOrDefault(u => u.Username == user.Username && u.Password == HashPassword(user.Password));
+            });
+
+            if (loggedInUser != null)
+            {
+                loggedInUser.PreferredCurrency = user.PreferredCurrency;
+                SaveAll(_users, AppUsersFilePath); // Save the updated preferred currency
+            }
+
             return loggedInUser;
         }
 

@@ -1,7 +1,11 @@
-@page "/debt"
+﻿@page "/debt"
 @using FinTracker.Services.Interface
-@inject NavigationManager Nav
+@using Microsoft.AspNetCore.Components
 @using FinTracker.Models
+@inject NavigationManager Nav
+@inject ITransactionService TransactionService
+@inject IDebtService DebtService
+@inject GlobalState GlobalState
 
 <style>
         .container {
@@ -122,14 +126,12 @@
             color: #475569;
         }
 </style>
+
 <div class="container">
     <div class="header">
         <h1 class="title">Debt Tracker</h1>
-        <button class="add-debt-btn" @onclick="OpenModal">
-            Add Debt
-        </button>
+        <button class="add-debt-btn" @onclick="OpenModal"> Add Debt </button>
     </div>
-
     <table class="debt-table">
         <thead>
             <tr>
@@ -147,7 +149,7 @@
                 <tr>
                     <td>@debt.Title</td>
                     <td>@debt.DueDate.ToShortDateString()</td>
-                    <td class="amount-cell">$@debt.Amount</td>
+                    <td class="amount-cell">@FormatCurrency(debt.Amount)</td>
                     <td><span class="source-badge">@debt.Source</span></td>
                     <td>
                         <span class="status-badge @(debt.Status == "Pending" ? "status-pending" : "status-cleared")">
@@ -158,9 +160,7 @@
                         @if (debt.Status == "Pending")
 
                         {
-                            <button class="clear-debt-btn" @onclick="() => ClearDebt(debt)">
-                                Clear Debt
-                            </button>
+                            <button class="clear-debt-btn" @onclick="() => ClearDebt(debt)"> Clear Debt </button>
                         }
                     </td>
                 </tr>
@@ -168,7 +168,7 @@
         </tbody>
     </table>
 </div>
-@* Modal for Adding Debt *@
+
 @if (showModal)
 
 {
@@ -182,9 +182,7 @@
                 <div class="modal-body">
                     @if (!string.IsNullOrEmpty(errorMessage))
                     {
-                        <div class="alert alert-danger">
-                            @errorMessage
-                        </div>
+                        <div class="alert alert-danger">@errorMessage</div>
                     }
                     <div class="mb-3">
                         <label>Title</label>
@@ -221,37 +219,43 @@
 }
 
 @code {
+    // Fields and Properties
+
+
+
     private string errorMessage;
-
-
 
     private Models.Debt newDebt = new Models.Debt();
 
-
-
     private bool showModal = false;
 
-
-
     private List<Models.Debt> debts = new List<Models.Debt>();
-
-
 
     private List<Models.Transaction> transactions = new List<Models.Transaction>();
 
 
 
+    private decimal totalIncome;
+
+    private decimal totalExpense;
+
+    private decimal totalDebt;
+
+    private decimal remainingDebt;
+
+    private decimal clearedDebt;
+
+
+
     private decimal TotalInflow => transactions.Where(t => t.Type == "Income").Sum(t => t.Amount);
 
-
-
     private decimal TotalOutflow => transactions.Where(t => t.Type == "Expense").Sum(t => t.Amount);
-
-
 
     private decimal AvailableInflow => TotalInflow - TotalOutflow;
 
 
+
+    // Lifecycle Methods
 
     protected override async Task OnInitializedAsync()
 
@@ -261,9 +265,13 @@
 
         await LoadTransactions(); // Load transactions along with debts
 
+        CalculateTotals(); // Calculate totals after loading data
+
     }
 
 
+
+    // Data Loading Methods
 
     private async Task LoadDebts()
 
@@ -273,9 +281,25 @@
 
         {
 
-            // Load debts using a service
-
             debts = await DebtService.GetAllDebts();
+
+            foreach (var debt in debts)
+
+            {
+
+                if (debt.OriginalAmount == 0)
+
+                {
+
+                    debt.OriginalAmount = debt.Amount;
+
+                    debt.OriginalCurrency = "USD"; // Assuming the base currency is USD
+
+                }
+
+            }
+
+            await ApplyCurrencyConversion(); // Use the existing method
 
         }
 
@@ -299,9 +323,27 @@
 
         {
 
-            // Load transactions using a service
-
             transactions = await TransactionService.GetAllTransactions();
+
+            foreach (var transaction in transactions)
+
+            {
+
+                if (transaction.OriginalAmount == 0)
+
+                {
+
+                    transaction.OriginalAmount = transaction.Amount;
+
+                    transaction.OriginalCurrency = "USD"; // Assuming the base currency is USD
+
+                }
+
+            }
+
+            await ApplyCurrencyConversion();
+
+            CalculateTotals(); // Calculate totals after loading data
 
         }
 
@@ -317,29 +359,94 @@
 
 
 
-    private void OpenModal()
+    // Currency Conversion
+
+    private async Task<decimal> GetExchangeRate(string fromCurrency, string toCurrency)
 
     {
 
-        newDebt = new Models.Debt
+        var exchangeRates = new Dictionary<string, decimal>
+        {
+            { "USD-EUR", 0.91M }, { "EUR-USD", 1M / 0.91M }
+        };
 
-            {
 
-                DueDate = DateOnly.FromDateTime(DateTime.Now.AddDays(20)),
 
-                Status = "Pending"
+        var key = $"{fromCurrency}-{toCurrency}";
 
-            };
-
-        showModal = true;
+        return exchangeRates.ContainsKey(key) ? exchangeRates[key] : 1M;
 
     }
 
 
 
-    private void CloseModal() => showModal = false;
+    private async Task ApplyCurrencyConversion()
+
+    {
+
+        var preferredCurrency = GlobalState.CurrentUser.PreferredCurrency;
 
 
+
+        foreach (var transaction in transactions)
+
+        {
+
+            if (transaction.OriginalCurrency != preferredCurrency)
+
+            {
+
+                var exchangeRate = await GetExchangeRate(transaction.OriginalCurrency, preferredCurrency);
+
+                transaction.Amount = transaction.OriginalAmount * exchangeRate;
+
+            }
+
+            else
+
+            {
+
+                transaction.Amount = transaction.OriginalAmount;
+
+            }
+
+        }
+
+
+
+        foreach (var debt in debts)
+
+        {
+
+            if (debt.OriginalCurrency != preferredCurrency)
+
+            {
+
+                var exchangeRate = await GetExchangeRate(debt.OriginalCurrency, preferredCurrency);
+
+                debt.Amount = debt.OriginalAmount * exchangeRate;
+
+            }
+
+            else
+
+            {
+
+                debt.Amount = debt.OriginalAmount;
+
+            }
+
+        }
+
+
+
+        StateHasChanged(); // Update the UI
+
+    }
+
+
+
+    // Debt Management Methods
 
     private async Task AddDebt()
 
@@ -349,31 +456,19 @@
 
         {
 
-            if (string.IsNullOrWhiteSpace(newDebt.Title))
+            if (string.IsNullOrWhiteSpace(newDebt.Title)) throw new Exception("Title is required.");
 
-                throw new Exception("Title is required.");
+            if (newDebt.Amount <= 0) throw new Exception("Amount must be greater than zero.");
 
-
-
-            if (newDebt.Amount <= 0)
-
-                throw new Exception("Amount must be greater than zero.");
+            if (string.IsNullOrWhiteSpace(newDebt.Source)) throw new Exception("Source is required.");
 
 
-
-            if (string.IsNullOrWhiteSpace(newDebt.Source))
-
-                throw new Exception("Source is required.");
-
-
-
-            // Save the debt via a service
 
             await DebtService.AddDebt(newDebt);
 
+            await LoadDebts(); // Refresh the debts list to avoid manual addition
 
 
-            debts.Add(newDebt);
 
             CloseModal();
 
@@ -391,11 +486,45 @@
 
 
 
+    private async Task DeleteDebt(Models.Debt debt)
+
+    {
+
+        try
+
+        {
+
+            await DebtService.DeleteDebt(debt.Id);
+
+            await LoadDebts(); // Refresh the debts list to avoid manual deletion
+
+
+
+            StateHasChanged(); // Update the UI
+
+        }
+
+        catch (Exception ex)
+
+        {
+
+            errorMessage = $"Error deleting debt: {ex.Message}";
+
+            Console.WriteLine(errorMessage);
+
+        }
+
+    }
+
+
+
     private async Task ClearDebt(Models.Debt debt)
 
     {
 
         Console.WriteLine($"ClearDebt called for debt: {debt.Title}");
+
+
 
         try
 
@@ -407,13 +536,41 @@
 
 
 
+            var transaction = new Models.Transaction
+
+                {
+
+                    Title = $"Clearance of {debt.Title}",
+
+                    Date = DateTime.Now,
+
+                    Amount = -debt.Amount, // Negative amount to reduce inflow
+
+                    Type = "Income", // Treat it as a negative income
+
+                    Description = $"Debt clearance: {debt.Title}",
+
+                    Tags = "Debt Clearance"
+
+                };
+
+
+
+            await TransactionService.AddTransaction(transaction);
+
+            await LoadTransactions(); // Refresh the transactions list to avoid manual addition
+
+
+
             debt.Status = "Cleared";
 
-
-
-            // Update the debt status via a service
-
             await DebtService.UpdateDebt(debt);
+
+
+
+            await LoadDebts();
+
+            CalculateTotals(); // Ensure totals are recalculated
 
 
 
@@ -434,6 +591,80 @@
             Console.WriteLine($"Error clearing debt: {ex.Message}");
 
         }
+
+    }
+
+
+
+    // UI Methods
+
+    private void OpenModal()
+
+    {
+
+        newDebt = new Models.Debt
+
+            {
+
+                DueDate = DateOnly.FromDateTime(DateTime.Now.AddDays(20)),
+
+                Status = "Pending"
+
+            };
+
+
+
+        showModal = true;
+
+    }
+
+
+
+    private void CloseModal() => showModal = false;
+
+
+
+    // Calculation Methods
+
+    private void CalculateTotals()
+
+    {
+
+        totalIncome = transactions.Where(t => t.Type == "Income").Sum(t => t.Amount);
+
+        totalExpense = transactions.Where(t => t.Type == "Expense").Sum(t => t.Amount);
+
+        totalDebt = debts.Sum(d => d.Amount);
+
+        remainingDebt = debts.Where(d => d.Status == "Pending").Sum(d => d.Amount);
+
+        clearedDebt = debts.Where(d => d.Status == "Cleared").Sum(d => d.Amount);
+
+    }
+
+
+
+    // Formatting Methods
+
+    private string FormatCurrency(decimal amount)
+
+    {
+
+        var currencySymbol = GlobalState.CurrentUser.PreferredCurrency switch
+
+        {
+
+            "USD" => "$",
+
+            "EUR" => "€",
+
+            _ => ""
+
+        };
+
+
+
+        return $"{currencySymbol}{amount:N2}";
 
     }
 }

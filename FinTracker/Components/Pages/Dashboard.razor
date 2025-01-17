@@ -1,20 +1,79 @@
 ﻿@page "/dashboard"
 @using FinTracker.Services.Interface
 @inject NavigationManager Nav
+@inject GlobalState GlobalState
 @using FinTracker.Models
+@using MudBlazor
 
 <style>
-        .container {
-            max-width: 1400px;
-            margin: 2rem auto;
-            padding: 0 1.5rem;
-        }
 
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
+        .date-range-picker {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.date-range-picker input[type="date"] {
+    padding: 0.75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    color: #475569;
+    background: #f8fafc;
+    transition: border-color 0.2s;
+}
+
+.date-range-picker input[type="date"]:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.date-range-picker button {
+    padding: 0.75rem 1.5rem;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.date-range-picker button:hover {
+    background: #2563eb;
+}
+
+.date-range-picker button:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.4);
+}
+
+    .container {
+        max-width: 1400px;
+        margin: 2rem auto;
+        padding: 0 1.5rem;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    /* Add new class for charts-transaction row */
+    .charts-transaction-row {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.5rem;
+        margin-bottom: 2rem;
         }
 
         .stat-card {
@@ -152,50 +211,60 @@
             background: #f8fafc;
         }
 
-        .chart-container {
-            background: #f8fafc;
-            border-radius: 8px;
-            padding: 1.5rem;
-            text-align: center;
-            color: #64748b;
-        }
-
-        
-            
-         
+    charts-transaction-row {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
 </style>
+
+<div class="date-range-picker">
+    <input type="date" @bind="fromDate" />
+    <input type="date" @bind="toDate" />
+    <button @onclick="FilterByDateRange">Filter</button>
+</div>
 
 <div class="container">
     <div class="stats-grid">
         <div class="stat-card stat-inflow">
             <h5>Total Inflows</h5>
-            <h2>@totalIncome</h2>
+            <h2>@FormatCurrency(totalIncome)</h2>
         </div>
         <div class="stat-card stat-outflow">
             <h5>Total Outflows</h5>
-            <h2>@totalExpense</h2>
+            <h2>@FormatCurrency(totalExpense)</h2>
         </div>
         <div class="stat-card stat-debt">
             <h5>Total Debt</h5>
-            <h2>@totalDebt</h2>
+            <h2>@FormatCurrency(totalDebt)</h2>
         </div>
         <div class="stat-card stat-remaining">
             <h5>Remaining Debt</h5>
-            <h2>@remainingDebt</h2>
+            <h2>@FormatCurrency(remainingDebt)</h2>
         </div>
         <div class="stat-card stat-cleared">
             <h5>Cleared Debt</h5>
-            <h2>@clearedDebt</h2>
+            <h2>@FormatCurrency(clearedDebt)</h2>
         </div>
     </div>
 
-    <div class="dashboard-row">
+    <div class="charts-transaction-row">
         <div class="dashboard-card">
-            <h5>Financial Overview</h5>
+            <h5>Debt Overview</h5>
             <div class="chart-container">
-                <p>TASK NO 4: ***Please add some charts here everyone!***</p>
+                <MudPaper Class="pa-4">
+                    <MudChart ChartType="ChartType.Pie"
+                              InputData="@data"
+                              @bind-SelectedIndex="Index"
+                              InputLabels="@labels"
+                              InputColors="new string[] { '#FFFF00', '#1C9FDD', '#90EE90' }"
+                              Width="300px"
+                              Height="300px" />
+                </MudPaper>
             </div>
         </div>
+
         <div class="dashboard-card">
             <h5>Top Transactions</h5>
             <select class="transaction-sort" @bind="transactionSortOrder" @bind:after="SortTransactions">
@@ -203,12 +272,18 @@
                 <option value="lowest">Lowest Transactions</option>
             </select>
             <div class="transaction-list">
+                <div class="transaction-item header">
+                    <span>Description</span>
+                    <span>Date</span>
+                    <span>Amount</span>
+                    <span>Type</span>
+                </div>
                 @foreach (var transaction in TopTransactions)
                 {
                     <div class="transaction-item">
                         <span>@transaction.Description</span>
                         <span>@transaction.Date.ToString("yyyy-MM-dd")</span>
-                        <span>$@transaction.Amount.ToString()</span>
+                        <span>@FormatCurrency(transaction.Amount)</span>
                         <span class="@(transaction.Type == "Income" ? "text-success" : "text-danger")">@transaction.Type</span>
                     </div>
                 }
@@ -232,7 +307,7 @@
                 {
                     <tr>
                         <td>@debt.Title</td>
-                        <td>$@debt.Amount</td>
+                        <td>@FormatCurrency(debt.Amount)</td>
                         <td>@debt.DueDate.ToShortDateString()</td>
                         <td>@debt.Status</td>
                     </tr>
@@ -287,36 +362,126 @@
     private string errorMessage;
     private string successMessage;
     private string transactionSortOrder = "highest";
+    private int Index = -1; // Default value cannot be 0 -> first selectedindex is 0.
+    private int dataSize = 4;
+    private double[] data = new double[] { };
+    private string[] labels = { "Total Debt", "Cleared Debt", "Remaining Debt" };
 
-    protected override void OnInitialized()
-    {
-        CalculateTotals();
-    }
-
-    private Models.Transaction newTransaction = new Models.Transaction();
-    private bool showModal = false;
-
+    // Lists for transactions and debts
+    private List<Models.Transaction> transactions = new List<Models.Transaction>();
     private List<Models.Debt> debts = new List<Models.Debt>();
+    private List<Models.Transaction> TopTransactions { get; set; }
 
+    // Financial data
     private decimal totalIncome;
     private decimal totalExpense;
     private decimal totalDebt;
     private decimal remainingDebt;
     private decimal clearedDebt;
 
-    private List<Models.Transaction> transactions = new List<Models.Transaction>();
+    // Modal and transaction management
+    private Models.Transaction newTransaction = new Models.Transaction();
+    private bool showModal = false;
+
+    // Date filters
+    private DateTime? fromDate;
+    private DateTime? toDate;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTransactions();
+        await LoadDebts();
+        await ApplyCurrencyConversionToTransactions();
+        CalculateTotals();
+    }
 
     private async Task LoadTransactions()
     {
         try
         {
             transactions = await TransactionService.GetAllTransactions();
+
+            foreach (var transaction in transactions)
+            {
+                if (transaction.OriginalAmount == 0)
+                {
+                    transaction.OriginalAmount = transaction.Amount;
+                    transaction.OriginalCurrency = "USD"; // Assuming base currency is USD
+                }
+            }
+
+            await ApplyCurrencyConversionToTransactions();
             SortTransactions();
+            CalculateTotals();
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error loading transactions: {ex.Message}");
         }
+    }
+
+    private async Task LoadDebts()
+    {
+        try
+        {
+            debts = await DebtService.GetAllDebts();
+            var preferredCurrency = GlobalState.CurrentUser.PreferredCurrency;
+
+            foreach (var debt in debts)
+            {
+                if (debt.OriginalAmount == 0)
+                {
+                    debt.OriginalAmount = debt.Amount; // Preserve original amount
+                    debt.OriginalCurrency = "USD"; // Assuming base currency is USD
+                }
+
+                var exchangeRate = await GetExchangeRate(debt.OriginalCurrency, preferredCurrency);
+                debt.Amount = debt.OriginalAmount * exchangeRate;
+            }
+
+            CalculateTotals();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading debts: {ex.Message}");
+        }
+    }
+
+    private async Task<decimal> GetExchangeRate(string fromCurrency, string toCurrency)
+    {
+        var exchangeRates = new Dictionary<string, decimal>
+        {
+            { "USD-EUR", 0.91M }, { "EUR-USD", 1M / 0.91M }
+        };
+
+        var key = $"{fromCurrency}-{toCurrency}";
+        return exchangeRates.ContainsKey(key) ? exchangeRates[key] : 1M;
+    }
+
+    private async Task ApplyCurrencyConversionToTransactions()
+    {
+        var preferredCurrency = GlobalState.CurrentUser.PreferredCurrency;
+
+        foreach (var transaction in transactions)
+        {
+            if (transaction.OriginalCurrency == null)
+            {
+                transaction.OriginalCurrency = "USD"; // Assuming base currency is USD
+                transaction.OriginalAmount = transaction.Amount;
+            }
+
+            if (transaction.OriginalCurrency != preferredCurrency)
+            {
+                var exchangeRate = await GetExchangeRate(transaction.OriginalCurrency, preferredCurrency);
+                transaction.Amount = transaction.OriginalAmount * exchangeRate;
+            }
+            else
+            {
+                transaction.Amount = transaction.OriginalAmount;
+            }
+        }
+
+        StateHasChanged();
     }
 
     private void SortTransactions()
@@ -331,65 +496,53 @@
         }
     }
 
-    private List<Models.Transaction> TopTransactions { get; set; }
-
-    // Fields for date range filtering
-    private DateTime? fromDate;
-    private DateTime? toDate;
-
-    private void OpenModal()
+    private void FilterByDateRange()
     {
-        newTransaction = new Models.Transaction();
-        newTransaction.Date = DateTime.Now;
-        showModal = true;
+        if (fromDate.HasValue && toDate.HasValue)
+        {
+            var fromDateOnly = DateOnly.FromDateTime(fromDate.Value);
+            var toDateOnly = DateOnly.FromDateTime(toDate.Value);
+
+            transactions = transactions.Where(t => DateOnly.FromDateTime(t.Date) >= fromDateOnly && DateOnly.FromDateTime(t.Date) <= toDateOnly).ToList();
+            debts = debts.Where(d => d.DueDate >= fromDateOnly && d.DueDate <= toDateOnly).ToList();
+        }
+        CalculateTotals();
+        SortTransactions();
     }
 
     private void CalculateTotals()
     {
-        totalIncome = transactions
-            .Where(t => t.Type == "Income")
-            .Sum(t => t.Amount);
-
-        totalExpense = transactions
-            .Where(t => t.Type == "Expense")
-            .Sum(t => t.Amount);
-
+        totalIncome = transactions.Where(t => t.Type == "Income").Sum(t => t.Amount);
+        totalExpense = transactions.Where(t => t.Type == "Expense").Sum(t => t.Amount);
         totalDebt = debts.Sum(d => d.Amount);
         remainingDebt = debts.Where(d => d.Status == "Pending").Sum(d => d.Amount);
         clearedDebt = debts.Where(d => d.Status == "Cleared").Sum(d => d.Amount);
+
+        // Populating the data array for the chart
+        data = new double[] { (double)totalDebt, (double)clearedDebt, (double)remainingDebt };
     }
 
-    private void CloseModal()
+    
+        
+
+    private void OpenModal()
     {
-        showModal = false;
+        newTransaction = new Models.Transaction { Date = DateTime.Now };
+        showModal = true;
     }
 
-    private void CloseSuccessModal()
-    {
-        successMessage = null;
-    }
+    private void CloseModal() => showModal = false;
+    private void CloseSuccessModal() => successMessage = null;
+    private void CloseErrorModal() => errorMessage = null;
 
-    private void CloseErrorModal()
+    private string FormatCurrency(decimal amount)
     {
-        errorMessage = null;
-    }
-
-    private async Task LoadDebts()
-    {
-        try
+        var currencySymbol = GlobalState.CurrentUser.PreferredCurrency switch
         {
-            debts = await DebtService.GetAllDebts();
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error loading debts: {ex.Message}");
-        }
-        CalculateTotals();
-    }
-
-    protected override async Task OnInitializedAsync()
-    {
-        await LoadTransactions();
-        await LoadDebts();
+            "USD" => "$",
+            "EUR" => "€",
+            _ => ""
+        };
+        return $"{currencySymbol}{amount:N2}";
     }
 }

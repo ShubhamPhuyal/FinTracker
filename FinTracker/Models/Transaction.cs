@@ -10,7 +10,11 @@ namespace FinTracker.Models
         public string Type { get; set; } // Income Expense Debt
         public DateTime Date { get; set; }        // Date of the transaction
         public string Description { get; set; }
+       
         public string Tags { get; set; }   // E.g. "Rent", "Salary", etc.
+
+        public decimal OriginalAmount { get; set; }
+        public string OriginalCurrency { get; set; }
 
     }
 }

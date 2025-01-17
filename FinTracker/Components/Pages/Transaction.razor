@@ -1,52 +1,221 @@
-@page "/transaction"
+﻿@page "/transaction"
 @using FinTracker.Services.Interface
 @inject NavigationManager Nav
+@inject GlobalState GlobalState
 @using FinTracker.Models
 
-<div class="container mt-4">
-    <div class="d-flex justify-content-end mb-3">
-        <button class="btn btn-primary" @onclick="OpenModal">Add Transaction</button>
+<style>
+    .container {
+        max-width: 1200px;
+        margin: 2rem auto;
+        padding: 0 1.5rem;
+    }
+
+    .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+    }
+
+    .add-transaction-btn {
+        background: #6366f1;
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        box-shadow: 0 2px 4px rgba(99, 102, 241, 0.2);
+    }
+
+        .add-transaction-btn:hover {
+            background: #4f46e5;
+            transform: translateY(-1px);
+        }
+
+    .summary-cards {
+        display: flex;
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .summary-card {
+        flex: 1;
+        padding: 1.25rem;
+        border-radius: 12px;
+        background: white;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+        .summary-card.inflow {
+            border-left: 4px solid #22c55e;
+        }
+
+        .summary-card.outflow {
+            border-left: 4px solid #ef4444;
+        }
+
+    .summary-label {
+        font-size: 0.875rem;
+        color: #64748b;
+        margin-bottom: 0.5rem;
+    }
+
+    .summary-amount {
+        font-size: 1.5rem;
+        font-weight: 600;
+        font-family: 'Monaco', monospace;
+    }
+
+    .inflow .summary-amount {
+        color: #22c55e;
+    }
+
+    .outflow .summary-amount {
+        color: #ef4444;
+    }
+
+    .filters {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .filter-label {
+        font-size: 0.75rem;
+        color: #64748b;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .filter-input {
+        padding: 0.625rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        color: #1e293b;
+        transition: all 0.2s;
+    }
+
+        .filter-input:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+    .transactions-table {
+        width: 100%;
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        border-collapse: collapse;
+    }
+
+        .transactions-table th {
+            background: #f8fafc;
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: #475569;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .transactions-table td {
+            padding: 1rem;
+            color: #1e293b;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 0.875rem;
+        }
+
+        .transactions-table tr:hover {
+            background: #f8fafc;
+        }
+
+    .tag {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        background: #f1f5f9;
+        color: #475569;
+        font-size: 0.75rem;
+        margin-right: 0.5rem;
+    }
+</style>
+
+<div class="container">
+    <div class="header">
+        <h1>Transactions</h1>
+        <button class="add-transaction-btn" @onclick="OpenModal">
+            Add Transaction
+        </button>
     </div>
 
-    <!-- Display Total Inflow and Outflow -->
-    <div class="mb-3 d-flex justify-content-between">
-        <div class="text-success">
-            <strong>Total Inflow:</strong> @TotalInflow
+    <div class="summary-cards">
+        <div class="summary-card inflow">
+            <div class="summary-label">Total Inflow</div>
+            <div class="summary-amount">@FormatCurrency(TotalInflow)</div>
         </div>
-        <div class="text-danger">
-            <strong>Total Outflow:</strong> @TotalOutflow
+        <div class="summary-card outflow">
+            <div class="summary-label">Total Outflow</div>
+            <div class="summary-amount">@FormatCurrency(TotalOutflow)</div>
         </div>
     </div>
 
-    <!-- Filter and Search -->
-    <div class="mb-3">
-        <label>Search Title: </label>
-        <input type="text" @bind="searchTitle" class="form-control me-2" style="display: inline-block; width: auto;" @bind:after="FilterTransactions" />
 
-        <label>Date From: </label>
-        <input type="date" @bind="fromDate" class="form-control me-2" style="display: inline-block; width: auto;" @bind:after="FilterTransactions" />
-        <label>Date To: </label>
-        <input type="date" @bind="toDate" class="form-control me-2" style="display: inline-block; width: auto;" @bind:after="FilterTransactions" />
+    <div class="filters">
+        <div class="filter-group">
+            <label class="filter-label">Search Title</label>
+            <input type="text" @bind="searchTitle" @bind:after="FilterTransactions" class="filter-input" placeholder="Search..." />
+        </div>
+        <div class="filter-group">
+            <label class="filter-label">Date From</label>
+            <input type="date" @bind="fromDate" @bind:after="FilterTransactions" class="filter-input" />
+        </div>
+        <div class="filter-group">
+            <label class="filter-label">Date To</label>
+            <input type="date" @bind="toDate" @bind:after="FilterTransactions" class="filter-input" />
+        </div>
+        <div class="filter-group">
+            <label class="filter-label">Type</label>
+            <select class="filter-input" @bind="selectedType" @bind:after="FilterTransactions">
+                <option value="">All</option>
+                <option value="Income">Income</option>
+                <option value="Expense">Expense</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label class="filter-label">Tags</label>
+            <select class="filter-input" @bind="selectedTag" @bind:after="FilterTransactions">
+                <option value="">All</option>
+                @foreach (var tag in availableTags)
 
-        <label>Type: </label>
-        <select class="form-select me-2" @bind="selectedType" style="display: inline-block; width: auto;" @bind:after="FilterTransactions">
-            <option value="">All</option>
-            <option value="Income">Income</option>
-            <option value="Expense">Expense</option>
-        </select>
-
-        <label>Tags: </label>
-        <select class="form-select" @bind="selectedTag" style="display: inline-block; width: auto;" @bind:after="FilterTransactions">
-            <option value="">All</option>
-            @foreach (var tag in availableTags)
-            {
-                <option value="@tag">@tag</option>
-            }
-        </select>
+                {
+                    <option value="@tag">@tag</option>
+                }
+            </select>
+        </div>
     </div>
 
-    <!-- Transactions List -->
-    <table class="table">
+    <table class="transactions-table">
         <thead>
             <tr>
                 <th>Title</th>
@@ -55,6 +224,7 @@
                 <th>Type</th>
                 <th>Description</th>
                 <th>Tags</th>
+                <th>Action</th>
             </tr>
         </thead>
         <tbody>
@@ -63,15 +233,32 @@
                 <tr>
                     <td>@transaction.Title</td>
                     <td>@transaction.Date.ToShortDateString()</td>
-                    <td>@transaction.Amount</td>
+                    <td>@FormatCurrency(transaction.Amount)</td>
                     <td>@transaction.Type</td>
                     <td>@transaction.Description</td>
-                    <td>@transaction.Tags</td>
+                    <td>
+                        @if (!string.IsNullOrEmpty(transaction.Tags))
+
+                        {
+                            @foreach (var tag in transaction.Tags.Split(','))
+                            {
+                                <span class="tag">@tag.Trim()</span>
+                            }
+                        }
+                    </td>
+                    <td>
+                        <button class="btn btn-danger" @onclick="() => DeleteTransaction(transaction)">
+                            Delete
+                        </button>
+                    </td>
                 </tr>
             }
         </tbody>
     </table>
+
+
 </div>
+
 
 @* Modal for Adding Transaction *@
 @if (showModal)
@@ -132,7 +319,6 @@
     </div>
     <div class="modal-backdrop fade show"></div>
 }
-
 @code {
     private string errorMessage;
 
@@ -141,6 +327,8 @@
     private bool showModal = false;
 
     private List<Models.Transaction> transactions = new List<Models.Transaction>();
+
+
 
     private DateTime? fromDate;
 
@@ -156,9 +344,27 @@
 
 
 
+    private decimal totalIncome;
+
+    private decimal totalExpense;
+
     private decimal TotalInflow => transactions.Where(t => t.Type == "Income").Sum(t => t.Amount);
 
     private decimal TotalOutflow => transactions.Where(t => t.Type == "Expense").Sum(t => t.Amount);
+
+    private decimal AvailableInflow => TotalInflow - TotalOutflow;
+
+
+
+    private void CalculateTotals()
+
+    {
+
+        totalIncome = transactions.Where(t => t.Type == "Income").Sum(t => t.Amount);
+
+        totalExpense = transactions.Where(t => t.Type == "Expense").Sum(t => t.Amount);
+
+    }
 
 
 
@@ -184,6 +390,79 @@
 
         UpdateAvailableTags();
 
+        CalculateTotals(); // Calculate totals after loading data
+
+    }
+
+
+
+    private async Task<decimal> GetExchangeRate(string fromCurrency, string toCurrency)
+
+    {
+
+        var exchangeRates = new Dictionary<string, decimal>
+        {
+            { "USD-EUR", 0.91M }, { "EUR-USD", 1M / 0.91M }
+        };
+
+
+
+        var key = $"{fromCurrency}-{toCurrency}";
+
+        return exchangeRates.ContainsKey(key) ? exchangeRates[key] : 1M;
+
+    }
+
+
+
+    private async Task ApplyCurrencyConversion()
+
+    {
+
+        var preferredCurrency = GlobalState.CurrentUser.PreferredCurrency;
+
+
+
+        foreach (var transaction in transactions)
+
+        {
+
+            if (transaction.OriginalCurrency == null)
+
+            {
+
+                transaction.OriginalCurrency = "USD"; // Assuming base currency is USD
+
+                transaction.OriginalAmount = transaction.Amount;
+
+            }
+
+
+
+            if (transaction.OriginalCurrency != preferredCurrency)
+
+            {
+
+                var exchangeRate = await GetExchangeRate(transaction.OriginalCurrency, preferredCurrency);
+
+                transaction.Amount = transaction.OriginalAmount * exchangeRate;
+
+            }
+
+            else
+
+            {
+
+                transaction.Amount = transaction.OriginalAmount;
+
+            }
+
+        }
+
+
+
+        StateHasChanged();
+
     }
 
 
@@ -198,7 +477,27 @@
 
             transactions = await TransactionService.GetAllTransactions();
 
+            foreach (var transaction in transactions)
+
+            {
+
+                if (transaction.OriginalAmount == 0)
+
+                {
+
+                    transaction.OriginalAmount = transaction.Amount;
+
+                    transaction.OriginalCurrency = "USD"; // Assuming base currency is USD
+
+                }
+
+            }
+
+            await ApplyCurrencyConversion();
+
             UpdateAvailableTags();
+
+            CalculateTotals(); // Calculate totals after loading data
 
         }
 
@@ -207,6 +506,52 @@
         {
 
             Console.WriteLine($"Error loading transactions: {ex.Message}");
+
+        }
+
+    }
+
+
+
+    private async Task DeleteTransaction(Models.Transaction transaction)
+
+    {
+
+        try
+
+        {
+
+            var isIncome = transaction.Type == "Income";
+
+            var newInflow = TotalInflow - (isIncome ? transaction.Amount : 0);
+
+            var newOutflow = TotalOutflow - (!isIncome ? transaction.Amount : 0);
+
+
+
+            if (newInflow < 0 || newOutflow < 0)
+
+            {
+
+                throw new Exception("Cannot delete transaction as it will result in negative inflow or outflow.");
+
+            }
+
+
+
+            await TransactionService.DeleteTransaction(transaction.Id);
+
+            await LoadTransactions(); // Refresh the transactions list to avoid manual deletion
+
+        }
+
+        catch (Exception ex)
+
+        {
+
+            errorMessage = $"Error deleting transaction: {ex.Message}";
+
+            Console.WriteLine(errorMessage);
 
         }
 
@@ -260,13 +605,9 @@
 
                 throw new Exception("Description is required.");
 
-
-
             if (newTransaction.Amount <= 0)
 
                 throw new Exception("Amount must be greater than zero.");
-
-
 
             if (string.IsNullOrWhiteSpace(newTransaction.Type))
 
@@ -274,9 +615,29 @@
 
 
 
+            var isIncome = newTransaction.Type == "Income";
+
+            var newInflow = TotalInflow + (isIncome ? newTransaction.Amount : 0);
+
+            var newOutflow = TotalOutflow + (!isIncome ? newTransaction.Amount : 0);
+
+
+
+            if (newInflow < 0 || newOutflow < 0)
+
+            {
+
+                throw new Exception("Cannot add transaction as it will result in negative inflow or outflow.");
+
+            }
+
+
+
             await TransactionService.AddTransaction(newTransaction);
 
-            transactions.Add(newTransaction);
+            await LoadTransactions(); // Refresh the transactions list to avoid manual addition
+
+
 
             CloseModal();
 
@@ -290,7 +651,33 @@
 
             errorMessage = ex.Message;
 
+            // Show error message to the user
+
+            Console.WriteLine(errorMessage);
+
         }
+
+    }
+
+
+
+    private string FormatCurrency(decimal amount)
+
+    {
+
+        var currencySymbol = GlobalState.CurrentUser.PreferredCurrency switch
+
+        {
+
+            "USD" => "$",
+
+            "EUR" => "€",
+
+            _ => ""
+
+        };
+
+        return $"{currencySymbol}{amount:N2}";
 
     }
 
